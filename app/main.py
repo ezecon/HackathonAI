@@ -108,3 +108,5 @@ app.include_router(
 app.include_router(
     performance.router
 )
+
+handler = Mangum(app)
