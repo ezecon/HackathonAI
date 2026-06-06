@@ -8,12 +8,8 @@ from mangum import Mangum
 from .database import SessionLocal
 from . import schemas, crud
 
-app = FastAPI(
-    title="LearnScape API",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json"
-)
+app = FastAPI()
+
 # =========================
 # CORS
 # =========================
