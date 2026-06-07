@@ -113,7 +113,14 @@ try:
 except Exception as e:
     print("AI router failed:", e)
 
-
+# existing router imports এর নিচে যোগ করো
+try:
+    from .routes.history import router as history_router
+    app.include_router(history_router)
+    print("History router loaded")
+except Exception as e:
+    print(f"History router failed: {e}")
+    
 # =========================
 # VERCEL HANDLER
 # =========================

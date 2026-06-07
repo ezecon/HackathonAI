@@ -142,3 +142,23 @@ class StudentGamification(Base):
         server_default=func.now(),
         onupdate=func.now()
     )
+
+    # ফাইলের শেষে যোগ করো
+class QuestionHistory(Base):
+    __tablename__ = "question_history"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+
+    topic = Column(String, nullable=False)
+    environment = Column(String, nullable=True)
+    class_level = Column(Integer, nullable=False)
+
+    question = Column(Text, nullable=False)      # word_problem
+    correct_answer = Column(Text, nullable=True)  # answer
+    student_answer = Column(Text, nullable=True)  # student যা লিখেছে
+    is_correct = Column(String, nullable=True)    # 'true' / 'false' / 'pending'
+
+    full_content = Column(Text, nullable=True)    # পুরো AI response (JSON)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
