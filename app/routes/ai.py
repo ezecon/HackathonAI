@@ -27,7 +27,8 @@ def generate(
         user_id=current_user["user_id"],
         topic=request.topic,
         environment=request.environment,
-        class_level=request.class_level
+        class_level=request.class_level,
+        language=request.language
     )
 
     return {

@@ -55,3 +55,4 @@ class AIRequest(BaseModel):
     topic: str
     environment: str
     class_level: int
+    language: str = "en"
