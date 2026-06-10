@@ -1,33 +1,23 @@
-# app/services/embedder.py
 
-model = None
+import os
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+load_dotenv()
+
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+EMBEDDING_MODEL = "models/text-embedding-004"  # free, fast, 768-dim
 
 
-def get_model():
+def get_embedding(text: str) -> list[float]:
     """
-    Lazy load SentenceTransformer model.
-    Prevents FastAPI startup crash on Render.
+    Generate an embedding vector using Gemini text-embedding-004.
+    Returns a list of floats (768 dimensions).
     """
-
-    global model
-
-    if model is None:
-        from sentence_transformers import SentenceTransformer
-
-        model = SentenceTransformer(
-            "sentence-transformers/all-MiniLM-L6-v2"
-        )
-
-    return model
-
-
-def get_embedding(text: str):
-    """
-    Generate embedding vector for text.
-    """
-
-    loaded_model = get_model()
-
-    vector = loaded_model.encode(text)
-
-    return vector.tolist()
+    result = genai.embed_content(
+        model=EMBEDDING_MODEL,
+        content=text,
+        task_type="retrieval_document",
+    )
+    return result["embedding"]

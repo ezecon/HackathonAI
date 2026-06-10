@@ -16,4 +16,3 @@ requests
 httpx
 pydantic
 mangum
-sentence-transformers
