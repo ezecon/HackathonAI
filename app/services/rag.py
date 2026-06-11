@@ -1,3 +1,4 @@
+# app/services/rag.py
 import json
 import numpy as np
 
@@ -7,37 +8,26 @@ from app.services.embedder import get_embedding
 
 
 def cosine_similarity(a, b):
-
     a = np.array(a)
     b = np.array(b)
+    norm = np.linalg.norm(a) * np.linalg.norm(b)
+    if norm == 0:
+        return 0
+    return np.dot(a, b) / norm
 
-    return np.dot(a, b) / (
-        np.linalg.norm(a)
-        * np.linalg.norm(b)
-    )
 
-
-def retrieve_context(
-    topic: str,
-    class_level: int
-):
-
+def retrieve_context(topic: str, class_level: int):
     db = SessionLocal()
 
-    # 1. Exact topic match first
-    exact_match = db.query(
-        KnowledgeBase
-    ).filter(
-        KnowledgeBase.topic.ilike(
-            f"%{topic}%"
-        ),
-        KnowledgeBase.class_level <= class_level
-    ).first()
+    try:
+        # 1. Exact topic match first (no API call needed)
+        exact_match = db.query(KnowledgeBase).filter(
+            KnowledgeBase.topic.ilike(f"%{topic}%"),
+            KnowledgeBase.class_level <= class_level
+        ).first()
 
-    if exact_match:
-
-        return f"""
-Topic:
+        if exact_match:
+            return f"""Topic:
 {exact_match.topic}
 
 Concept:
@@ -47,45 +37,42 @@ Explanation:
 {exact_match.explanation}
 
 Example:
-{exact_match.example}
-"""
+{exact_match.example}"""
 
-    # 2. Semantic Search
-    query_vector = get_embedding(topic)
+        # 2. Semantic search — only if exact match failed
+        try:
+            query_vector = get_embedding(topic)
+        except Exception as e:
+            print(f"Embedding unavailable (quota?): {e}")
+            # Fall back gracefully — AI will use its own knowledge
+            return ""
 
-    data = db.query(
-        KnowledgeBase
-    ).filter(
-        KnowledgeBase.class_level <= class_level
-    ).all()
+        # Only compare rows that already have embeddings seeded
+        data = db.query(KnowledgeBase).filter(
+            KnowledgeBase.class_level <= class_level,
+            KnowledgeBase.embedding.isnot(None)
+        ).all()
 
-    best_match = None
-    best_score = -1
+        best_match = None
+        best_score = -1
 
-    for item in data:
+        for item in data:
+            try:
+                stored_vector = json.loads(item.embedding)
+                # Skip rows with wrong dimension (old 384-dim vectors)
+                if len(stored_vector) != len(query_vector):
+                    continue
+                score = cosine_similarity(query_vector, stored_vector)
+                if score > best_score:
+                    best_score = score
+                    best_match = item
+            except Exception:
+                continue
 
-        if not item.embedding:
-            continue
+        if not best_match:
+            return ""
 
-        stored_vector = json.loads(
-            item.embedding
-        )
-
-        score = cosine_similarity(
-            query_vector,
-            stored_vector
-        )
-
-        if score > best_score:
-
-            best_score = score
-            best_match = item
-
-    if not best_match:
-        return ""
-
-    return f"""
-Topic:
+        return f"""Topic:
 {best_match.topic}
 
 Concept:
@@ -95,5 +82,7 @@ Explanation:
 {best_match.explanation}
 
 Example:
-{best_match.example}
-"""
+{best_match.example}"""
+
+    finally:
+        db.close()
