@@ -1,15 +1,28 @@
+# app/services/ai_engine.py
+
 import os
 import json
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
+
 from app.services.rag import retrieve_context
 from app.services.memory_retriever import get_user_memory
 from app.services.mastery_engine import calculate_mastery_score
 
 load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-2.5-flash")
 
+_client = None
+
+def _get_client():
+    global _client
+    if _client is None:
+        _client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    return _client
+
+GEMINI_MODEL = "gemini-2.5-flash"
+
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _language_instruction(language):
     if language == "bn":
@@ -62,13 +75,35 @@ def _difficulty_hint(mastery_score, topic, weak_topics, strong_topics):
         hint = "Difficulty: MEDIUM\n- standard curriculum problems\n- moderate reasoning"
     else:
         hint = "Difficulty: HARD\n- multi-step reasoning\n- challenge problems"
-
     if topic.lower() in str(weak_topics).lower():
         hint += "\nStudent struggles in this topic:\n- slow explanation\n- extra hints"
     elif topic.lower() in str(strong_topics).lower():
         hint += "\nStudent is strong here:\n- increase difficulty slightly"
     return hint
 
+
+def _call_gemini(prompt: str) -> dict:
+    """Call Gemini and return parsed JSON. Returns safe fallback on any error."""
+    try:
+        client = _get_client()
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+        )
+        cleaned = response.text.replace("```json", "").replace("```", "").strip()
+        return json.loads(cleaned)
+    except Exception as e:
+        print("Gemini Error:", str(e))
+        return {
+            "concept_explanation": "AI service temporarily unavailable. Please try again.",
+            "example": "",
+            "word_problem": "",
+            "answer": "",
+            "step_by_step_solution": []
+        }
+
+
+# ─── Public functions ─────────────────────────────────────────────────────────
 
 def generate_learning_content(user_id, topic, environment, class_level, language='en'):
     rag_ctx = _rag_context(topic, class_level)
@@ -143,20 +178,7 @@ Format:
     "step_by_step_solution": ["step 1", "step 2", "step 3"]
 }}
 """
-
-    try:
-        response = model.generate_content(prompt)
-        cleaned = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(cleaned)
-    except Exception as e:
-        print("Gemini Error:", str(e))
-        return {
-            "concept_explanation": "AI service temporarily unavailable. Please try again.",
-            "example": "",
-            "word_problem": "",
-            "answer": "",
-            "step_by_step_solution": []
-        }
+    return _call_gemini(prompt)
 
 
 def generate_remediation_content(user_id, topic, environment, class_level, language='en'):
@@ -238,17 +260,4 @@ Format:
     "step_by_step_solution": ["step 1", "step 2", "step 3"]
 }}
 """
-
-    try:
-        response = model.generate_content(prompt)
-        cleaned = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(cleaned)
-    except Exception as e:
-        print("Gemini Error:", str(e))
-        return {
-            "concept_explanation": "AI service temporarily unavailable. Please try again.",
-            "example": "",
-            "word_problem": "",
-            "answer": "",
-            "step_by_step_solution": []
-        }
+    return _call_gemini(prompt)
