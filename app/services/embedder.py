@@ -1,23 +1,23 @@
-# app/services/embedder.py
+
 import os
-from google import genai
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
 
-_client = None
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-def _get_client():
-    global _client
-    if _client is None:
-        _client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    return _client
+EMBEDDING_MODEL = "models/text-embedding-004"  # free, fast, 768-dim
 
 
 def get_embedding(text: str) -> list[float]:
-    client = _get_client()
-    result = client.models.embed_content(
-        model="models/text-embedding-004",   # must include "models/" prefix
-        contents=text,
+    """
+    Generate an embedding vector using Gemini text-embedding-004.
+    Returns a list of floats (768 dimensions).
+    """
+    result = genai.embed_content(
+        model=EMBEDDING_MODEL,
+        content=text,
+        task_type="retrieval_document",
     )
-    return result.embeddings[0].values
+    return result["embedding"]
