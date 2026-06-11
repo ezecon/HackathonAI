@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from mangum import Mangum
 
 from .database import SessionLocal, create_tables
 from . import schemas, crud
@@ -99,3 +100,8 @@ try:
     print("History router loaded")
 except Exception as e:
     print(f"History router failed: {e}")
+
+# =========================
+# VERCEL HANDLER
+# =========================
+handler = Mangum(app, lifespan="off")
